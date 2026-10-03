@@ -15,6 +15,7 @@ import { orderTrashRoutes, purgeExpiredOrderSlips } from "./routes/order-trash.j
 import { referenceRoutes } from "./routes/reference.js";
 import { reportRoutes } from "./routes/reports.js";
 import { shipmentRoutes } from "./routes/shipments.js";
+import { supplierRoutes } from "./routes/suppliers.js";
 
 export async function buildApp() {
   const app = Fastify({ logger: true });
@@ -69,6 +70,7 @@ export async function buildApp() {
   await app.register(healthRoutes, { prefix: "/api/v1" });
   await app.register(authRoutes, { prefix: "/api/v1/auth" });
   await app.register(referenceRoutes, { prefix: "/api/v1" });
+  await app.register(supplierRoutes, { prefix: "/api/v1" });
   await app.register(shipmentRoutes, { prefix: "/api/v1" });
   await app.register(inventoryRoutes, { prefix: "/api/v1" });
   await app.register(orderRoutes, { prefix: "/api/v1" });
