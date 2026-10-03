@@ -15,6 +15,7 @@ import {
   createProduct,
   createShipment,
   createSupplier,
+  deleteSupplier,
   getContainer,
   getContainerVariance,
   getOpenQuestionCount,
@@ -31,6 +32,7 @@ import {
   unloadContainer,
   updateContainerStatus,
   updateProduct,
+  updateSupplier,
   voidDelivery,
 } from "./warehouse.ts";
 import {
@@ -60,6 +62,7 @@ import type {
   SupplierParams,
   StockLogParams,
   StockStatusParams,
+  UpdateSupplierInput,
   VarianceParams,
 } from "./types.ts";
 import type {
@@ -495,6 +498,23 @@ export function useCreateSupplier() {
   return useMutation({
     mutationFn: createSupplier,
     // Every supplier dropdown, whichever kind it filters to.
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
+  });
+}
+
+export function useUpdateSupplier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateSupplierInput }) =>
+      updateSupplier(id, input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
+  });
+}
+
+export function useDeleteSupplier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deleteSupplier,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
   });
 }

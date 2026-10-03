@@ -11,12 +11,24 @@ import { sql } from "drizzle-orm";
 import { closeDatabase, db } from "../db/client.js";
 import { productCategories, stockBalances, suppliers } from "../db/schema.js";
 
-const SUPPLIERS: Array<{ name: string; code: string | null }> = [
-  { name: "GY", code: "GY" },
-  { name: "LI CY", code: "LI CY" },
+/**
+ * The three international suppliers come from the notebooks. The local one is
+ * invented: the client's real local suppliers have not been transcribed yet,
+ * and the truck-delivery flow needs at least one to be testable.
+ */
+const SUPPLIERS: Array<{
+  name: string;
+  code: string | null;
+  kind: "INTERNATIONAL" | "LOCAL";
+}> = [
+  { name: "GY", code: "GY", kind: "INTERNATIONAL" },
+  { name: "LI CY", code: "LI CY", kind: "INTERNATIONAL" },
   // Possibly a misreading of "LI CY" in the notebooks — kept separate until confirmed.
-  { name: "LI LY", code: "LI LY" },
+  { name: "LI LY", code: "LI LY", kind: "INTERNATIONAL" },
+  { name: "Sta. Maria Rice Trading", code: "SMRT", kind: "LOCAL" },
 ];
+
+const PLACEHOLDER_PRICE_PER_KG = 60;
 
 /** [brand, variety, size_kg, notebook code, is_available] */
 type ProductSeed = [string, string | null, number, string | null, boolean];
@@ -104,8 +116,8 @@ try {
     .onConflictDoNothing()
     .returning({ id: suppliers.id });
 
-  // selling_price stays null: the wall price list has never been transcribed,
-  // and a guessed price is worse than none. is_available is the sale signal.
+  // Only available products get a price. POS hides anything unpriced, and a
+  // price on an unavailable product is a leftover rather than a signal.
   const insertedProducts = await db
     .insert(productCategories)
     .values(
@@ -115,6 +127,7 @@ try {
         sizeKg,
         code,
         isAvailable,
+        sellingPrice: isAvailable ? sizeKg * PLACEHOLDER_PRICE_PER_KG : null,
       })),
     )
     .onConflictDoNothing()

@@ -77,6 +77,14 @@ export interface CreateSupplierInput {
   kind: SupplierKind;
 }
 
+/** PATCH /suppliers/:id. Kind cannot be changed once relationships exist. */
+export interface UpdateSupplierInput {
+  name?: string;
+  code?: string | null;
+  kind?: SupplierKind;
+  isActive?: boolean;
+}
+
 export interface ProductCategory {
   id: string;
   brand: string;

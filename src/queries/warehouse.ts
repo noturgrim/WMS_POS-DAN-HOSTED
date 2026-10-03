@@ -28,6 +28,7 @@ import type {
   Supplier,
   SupplierParams,
   UpdateProductInput,
+  UpdateSupplierInput,
   VoidDeliveryInput,
   UnloadContainerInput,
   UpdateContainerStatusInput,
@@ -46,6 +47,23 @@ export async function createSupplier(input: CreateSupplierInput): Promise<Suppli
     body: JSON.stringify(input),
   });
 }
+
+export async function updateSupplier(
+  id: string,
+  input: UpdateSupplierInput,
+): Promise<Supplier> {
+  return apiRequest<Supplier>(`/suppliers/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteSupplier(id: string): Promise<Supplier> {
+  return apiRequest<Supplier>(`/suppliers/${id}`, {
+    method: "DELETE",
+  });
+}
+
 export async function getProductCategories(
   params: ProductCategoryParams = {},
 ): Promise<ProductCategory[]> {

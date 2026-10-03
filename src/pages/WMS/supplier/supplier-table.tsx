@@ -1,0 +1,195 @@
+import { Flex, Form, Input, Tag, Tooltip, message } from "antd";
+import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
+import type { ColumnDef } from "@tanstack/react-table";
+
+import { DataTable } from "../../../common/items/table/table";
+import CommonModalForm from "../../../common/items/modal/modal";
+import { ErrorNotificationPopup } from "../../../common/items/notification/errror-notif";
+import type { Supplier, SupplierKind, UpdateSupplierInput } from "../../../queries/types";
+import { useUpdateSupplier, useDeleteSupplier } from "../../../queries/useHooks";
+
+const SUPPLIER_KIND_LABEL: Record<SupplierKind, string> = {
+  INTERNATIONAL: "International",
+  LOCAL: "Local",
+};
+
+const SUPPLIER_KIND_COLOR: Record<SupplierKind, string> = {
+  INTERNATIONAL: "blue",
+  LOCAL: "green",
+};
+
+type EditValues = {
+  name: string;
+  code?: string | null;
+};
+
+function SupplierActions({
+  supplier,
+  onRefresh,
+}: {
+  supplier: Supplier;
+  onRefresh: () => void;
+}) {
+  const [msg, msgHolder] = message.useMessage();
+  const { showError, contextHolder: errorHolder } = ErrorNotificationPopup();
+  const updateMutation = useUpdateSupplier();
+  const deleteMutation = useDeleteSupplier();
+
+  const handleEdit = async (values: EditValues) => {
+    try {
+      await updateMutation.mutateAsync({
+        id: supplier.id,
+        input: {
+          name: values.name.trim(),
+          code: values.code?.trim() || null,
+        },
+      });
+      msg.success("Supplier updated");
+      onRefresh();
+    } catch (e) {
+      showError(e, "Could not update supplier");
+      throw e; // keeps the modal open
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await deleteMutation.mutateAsync(supplier.id);
+      msg.success("Supplier deactivated");
+      onRefresh();
+    } catch (e) {
+      showError(e, "Could not deactivate supplier");
+    }
+  };
+
+  if (!supplier.is_active) {
+    return (
+      <Tooltip title="This supplier is inactive">
+        <Tag style={{ margin: 0 }}>Inactive</Tag>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Flex gap={4} justify="end">
+      {msgHolder}
+      {errorHolder}
+      <Tooltip title="Edit supplier">
+        <span>
+          <CommonModalForm<EditValues>
+            title="Edit supplier"
+            triggerLabel={<EditOutlined />}
+            triggerButtonType="text"
+            okText="Save"
+            width={400}
+            initialValues={{
+              name: supplier.name,
+              code: supplier.code ?? undefined,
+            }}
+            onSave={handleEdit}
+          >
+            <Form.Item
+              name="name"
+              label="Name"
+              rules={[
+                { required: true, whitespace: true, message: "Enter the name" },
+              ]}
+            >
+              <Input maxLength={200} />
+            </Form.Item>
+            <Form.Item name="code" label="Code">
+              <Input maxLength={50} placeholder="Optional" />
+            </Form.Item>
+          </CommonModalForm>
+        </span>
+      </Tooltip>
+      <Tooltip title="Deactivate supplier">
+        <span>
+          <CommonModalForm<{ reason: string }>
+            title="Deactivate supplier?"
+            triggerLabel={<DeleteOutlined />}
+            triggerButtonType="text"
+            okText="Deactivate"
+            okButtonProps={{ danger: true }}
+            width={400}
+            onSave={() => handleDelete()}
+          >
+            <Form.Item>
+              <span style={{ color: "rgba(0, 0, 0, 0.65)" }}>
+                Active shipments and deliveries will remain intact. This supplier
+                will no longer appear in dropdowns.
+              </span>
+            </Form.Item>
+          </CommonModalForm>
+        </span>
+      </Tooltip>
+    </Flex>
+  );
+}
+
+const supplierColumns: ColumnDef<Supplier, any>[] = [
+  {
+    id: "name",
+    header: "Name",
+    accessorFn: (s) => s.name,
+    size: 200,
+    meta: { fixed: "left" },
+  },
+  {
+    id: "code",
+    header: "Code",
+    accessorFn: (s) => s.code,
+    size: 100,
+    cell: (c) => c.getValue<string | null>() ?? "—",
+  },
+  {
+    id: "kind",
+    header: "Type",
+    accessorFn: (s) => s.kind,
+    size: 120,
+    cell: (c) => {
+      const kind = c.getValue<SupplierKind>();
+      return (
+        <Tag color={SUPPLIER_KIND_COLOR[kind]}>{SUPPLIER_KIND_LABEL[kind]}</Tag>
+      );
+    },
+  },
+  {
+    id: "actions",
+    header: "",
+    accessorFn: (s) => s.id,
+    size: 100,
+    meta: { fixed: "right" },
+    cell: (c) => (
+      <SupplierActions
+        supplier={c.row.original}
+        onRefresh={() => {
+          // Trigger parent refresh
+          window.location.reload();
+        }}
+      />
+    ),
+  },
+];
+
+export function SupplierTable({
+  data,
+  onRefresh,
+}: {
+  data: Supplier[];
+  onRefresh: () => void;
+}) {
+  const columns = supplierColumns.map((col) => {
+    if (col.id === "actions") {
+      return {
+        ...col,
+        cell: (c: any) => (
+          <SupplierActions supplier={c.row.original} onRefresh={onRefresh} />
+        ),
+      };
+    }
+    return col;
+  });
+
+  return <DataTable data={data} columns={columns} />;
+}
