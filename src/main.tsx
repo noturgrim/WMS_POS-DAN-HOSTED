@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import './index.css'
 import { AppLayout } from './common/components/app-layout/app-layout.tsx'
 import { ThemeProvider } from './common/context/theme-context.tsx'
+import { LanguageProvider } from './common/context/language-context.tsx'
 import LoginPage from './pages/login/login-page.tsx'
 
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -28,8 +29,9 @@ import SupplierPage from './pages/WMS/supplier/supplier-page.tsx'
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider> 
-        <BrowserRouter>
+      <LanguageProvider>
+        <ThemeProvider>
+          <BrowserRouter>
           <Routes>
             <Route index element={<LoginPage />} />
             
@@ -53,8 +55,9 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/cashiers" element={<CashierPage />} />
               </Route>
           </Routes>
-        </BrowserRouter>
-      </ThemeProvider>
+          </BrowserRouter>
+        </ThemeProvider>
+      </LanguageProvider>
     </QueryClientProvider>
   </StrictMode>,
 )
