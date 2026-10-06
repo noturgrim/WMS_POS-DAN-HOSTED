@@ -50,6 +50,9 @@ export function CashierDayCard({
           <Descriptions.Item label={t("Amount paid")}>
             {fmtMoney(summary.paidAmount)}
           </Descriptions.Item>
+          <Descriptions.Item label={t("Balance")}>
+            {fmtMoney(summary.balanceAmount)}
+          </Descriptions.Item>
         </Descriptions>
 
         <Flex gap={6} wrap>

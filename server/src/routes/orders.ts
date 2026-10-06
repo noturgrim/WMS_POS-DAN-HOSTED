@@ -37,6 +37,11 @@ const orderBody = z.object({
   status: z.enum(["paid", "unpaid", "partial"]),
   /** Ignored for paid slips. Defaults to DEFAULT_TERM_DAYS out when omitted. */
   paymentDueDate: z.iso.date().optional(),
+  /**
+   * Required for partial slips: what the customer has paid so far. Ignored
+   * otherwise — a paid slip is paid in full and an unpaid one has paid 0.
+   */
+  amountPaid: z.number().nonnegative().max(1_000_000_000_000).optional(),
   cashierId: z.uuid(),
   items: z.array(z.object({
     productId: z.uuid(),
@@ -115,6 +120,29 @@ function resolveDueDate(input: z.infer<typeof orderBody>): string {
   const today = posToday();
   if (input.status === "paid") return laterDate(today, input.date);
   return input.paymentDueDate ?? addDays(laterDate(today, input.date), DEFAULT_TERM_DAYS);
+}
+
+/**
+ * The amount paid to store, checked against the total the server computed
+ * (the client's own total is never trusted). A partial payment must be more
+ * than nothing and less than the whole; otherwise the status is wrong.
+ */
+function resolveAmountPaid(input: z.infer<typeof orderBody>, totalAmount: number): number {
+  if (input.status === "paid") return totalAmount;
+  if (input.status === "unpaid") return 0;
+  if (input.amountPaid === undefined) {
+    throw new ApiError(400, "AMOUNT_PAID_REQUIRED", "Enter how much has been paid on a partially paid slip");
+  }
+  const amountPaid = money(input.amountPaid);
+  if (amountPaid <= 0 || amountPaid >= totalAmount) {
+    throw new ApiError(
+      400,
+      "INVALID_AMOUNT_PAID",
+      `A partial payment must be more than 0 and less than the total of ${totalAmount.toFixed(2)}`,
+      { totalAmount },
+    );
+  }
+  return amountPaid;
 }
 
 function assertOrderInput(input: z.infer<typeof orderBody>): void {
@@ -197,6 +225,7 @@ export const slipColumns = {
   status: orderSlips.status,
   paymentDueDate: orderSlips.paymentDueDate,
   totalAmount: orderSlips.totalAmount,
+  amountPaid: orderSlips.amountPaid,
   cashierId: cashiers.id,
   cashierName: cashiers.name,
   cashierActive: cashiers.isActive,
@@ -207,7 +236,12 @@ export type SlipRow = {
 };
 
 export function toApiSlip({ cashierId, cashierName, cashierActive, ...slip }: SlipRow) {
-  return { ...slip, cashier: { id: cashierId, name: cashierName, isActive: cashierActive } };
+  return {
+    ...slip,
+    /** Still owed: total minus what's been paid. */
+    balance: money(slip.totalAmount - slip.amountPaid),
+    cashier: { id: cashierId, name: cashierName, isActive: cashierActive },
+  };
 }
 
 /** Slips in Trash (or emptied from it) are hidden everywhere but the Trash. */
@@ -292,8 +326,8 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * One group per (slip date, cashier) with at least one slip in the range.
-   * `paidAmount` sums fully paid slips only: partial slips don't record how
-   * much has been paid, so they count toward `totalAmount` but not here.
+   * `paidAmount` is money received: paid slips in full plus what's been
+   * paid on partial ones. `balanceAmount` is what's still owed.
    */
   app.get("/order-slips/summary", posOnly, async (request) => {
     const query = summaryQuery.parse(request.query);
@@ -315,7 +349,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         partial: statusCount("partial"),
         unpaid: statusCount("unpaid"),
         totalAmount: sql<number>`coalesce(sum(${orderSlips.totalAmount}), 0)::float8`,
-        paidAmount: sql<number>`coalesce(sum(${orderSlips.totalAmount}) filter (where ${orderSlips.status} = 'paid'), 0)::float8`,
+        paidAmount: sql<number>`coalesce(sum(${orderSlips.amountPaid}), 0)::float8`,
       })
       .from(orderSlips)
       .innerJoin(cashiers, eq(orderSlips.cashierId, cashiers.id))
@@ -348,6 +382,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       statusCounts: { paid: group.paid, partial: group.partial, unpaid: group.unpaid },
       totalAmount: group.totalAmount,
       paidAmount: group.paidAmount,
+      balanceAmount: money(group.totalAmount - group.paidAmount),
       products: (productsByGroup.get(`${group.date}|${group.cashierId}`) ?? []).map((row) => ({
         productId: row.productId,
         brand: row.brand,
@@ -421,6 +456,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
           status: input.status,
           paymentDueDate: resolveDueDate(input),
           totalAmount,
+          amountPaid: resolveAmountPaid(input, totalAmount),
           createdBy: request.currentUser!.id,
           updatedBy: request.currentUser!.id,
         })
@@ -602,6 +638,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
           status: input.status,
           paymentDueDate: resolveDueDate(input),
           totalAmount,
+          amountPaid: resolveAmountPaid(input, totalAmount),
           revision: newRevision,
           updatedBy: request.currentUser!.id,
           updatedAt: new Date(),

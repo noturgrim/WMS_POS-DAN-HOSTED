@@ -56,6 +56,7 @@ export async function updateOrderSlip(input: UpdateOrderSlipInput): Promise<void
       address: input.address,
       status: input.status,
       paymentDueDate: input.paymentDueDate,
+      amountPaid: input.amountPaid,
       cashierId: input.cashierId,
       items: input.items,
     }),

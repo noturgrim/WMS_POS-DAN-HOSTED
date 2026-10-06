@@ -134,6 +134,11 @@ const orderSlipColumns = (t: Translate): ColumnDef<OrderSlip, any>[] => [
               {fmtTableDate(slip.paymentDueDate)}
             </div>
           )}
+          {slip.status === "partial" && (
+            <div style={{ fontSize: 12, whiteSpace: "nowrap", marginTop: 2 }}>
+              {t("Balance")} {fmtMoney(slip.balance)}
+            </div>
+          )}
         </div>
       );
     },

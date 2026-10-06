@@ -45,6 +45,10 @@ export interface OrderSlip {
     status: PaymentStatus;
     paymentDueDate: string;
     totalAmount: number;
+    /** Received so far: the total when paid, 0 when unpaid. */
+    amountPaid: number;
+    /** Still owed: totalAmount − amountPaid. */
+    balance: number;
 }
 
 // ---- create order slip ------------------------------------------
@@ -65,6 +69,11 @@ export interface CreateOrderSlipInput {
     status: PaymentStatus;
     /** Omitted for paid slips: the backend sets it to the day it's saved. */
     paymentDueDate?: string;
+    /**
+     * Partial slips only: more than 0 and less than the total. The backend
+     * sets it to the total for paid slips and 0 for unpaid ones.
+     */
+    amountPaid?: number;
     cashierId: string;
     items: CreateOrderSlipItem[];
 }
@@ -103,8 +112,10 @@ export interface CashierDaySummary {
     slipCount: number;
     statusCounts: Record<PaymentStatus, number>;
     totalAmount: number;
-    /** Fully paid slips only; partial payments aren't recorded as amounts. */
+    /** Money received: paid slips in full plus what's paid on partial ones. */
     paidAmount: number;
+    /** Still owed: totalAmount − paidAmount. */
+    balanceAmount: number;
     products: {
         productId: string;
         brand: string;

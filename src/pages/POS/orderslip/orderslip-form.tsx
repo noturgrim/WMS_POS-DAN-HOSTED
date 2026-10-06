@@ -48,6 +48,8 @@ export type OrderSlipHeaderValues = {
   status: PaymentStatus;
   /** Only shown, and only sent, while the slip is unpaid or partial. */
   paymentDueDate?: Dayjs;
+  /** Only shown, and only sent, while the slip is partial. */
+  amountPaid?: number;
   cashierId: string;
 };
 
@@ -305,6 +307,8 @@ export function OrderSlipForm({
     0,
   );
   const totalQuantity = items.reduce((n, i) => n + i.quantity, 0);
+  const amountPaid = Form.useWatch("amountPaid", form);
+  const balance = Math.max(0, totalAmount - (amountPaid ?? 0));
 
   const submit = async () => {
     const header = await form.validateFields();
@@ -319,6 +323,8 @@ export function OrderSlipForm({
           header.status === "paid"
             ? undefined
             : header.paymentDueDate?.format("YYYY-MM-DD"),
+        // The backend fills in the total for paid and 0 for unpaid.
+        amountPaid: header.status === "partial" ? header.amountPaid : undefined,
         cashierId: header.cashierId,
         // client-side keys stay behind
         items: items.map((i) => ({
@@ -449,6 +455,45 @@ export function OrderSlipForm({
                 </Form.Item>
               )}
             </Flex>
+            {status === "partial" && (
+              <Flex wrap gap={12} align="start" style={{ marginTop: 16 }}>
+                <Form.Item
+                  name="amountPaid"
+                  label={t("Amount paid")}
+                  rules={[
+                    { required: true, message: t("Enter how much has been paid") },
+                    {
+                      // Checked against the live total, so adding or removing
+                      // articles re-validates on submit.
+                      validator: (_, v: number | undefined) =>
+                        v === undefined || v === null
+                          ? Promise.resolve()
+                          : v <= 0
+                            ? Promise.reject(new Error(t("Must be more than 0")))
+                            : v >= totalAmount
+                              ? Promise.reject(
+                                  new Error(t("Must be less than the total of {total}", { total: fmtMoney(totalAmount) })),
+                                )
+                              : Promise.resolve(),
+                    },
+                  ]}
+                  style={{ flex: 1, minWidth: 200, marginBottom: 0 }}
+                >
+                  <InputNumber
+                    min={0}
+                    precision={2}
+                    prefix="₱"
+                    style={{ width: "100%" }}
+                    placeholder="0.00"
+                  />
+                </Form.Item>
+                <Form.Item label={t("Balance")} style={{ flex: 1, minWidth: 200, marginBottom: 0 }}>
+                  <Typography.Text strong style={{ fontSize: 16, lineHeight: "32px" }}>
+                    {fmtMoney(balance)}
+                  </Typography.Text>
+                </Form.Item>
+              </Flex>
+            )}
           </Form>
         </Card>
 

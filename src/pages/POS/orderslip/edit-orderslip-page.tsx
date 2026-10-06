@@ -67,6 +67,9 @@ export default function EditOrderSlipPage() {
           address: slip.address,
           status: slip.status,
           paymentDueDate: dayjs(slip.paymentDueDate),
+          // Older partial slips have 0 recorded; leave the field empty so
+          // the form asks for the real amount.
+          amountPaid: slip.status === "partial" && slip.amountPaid > 0 ? slip.amountPaid : undefined,
           cashierId: slip.cashier.id,
         }}
         currentCashier={slip.cashier}

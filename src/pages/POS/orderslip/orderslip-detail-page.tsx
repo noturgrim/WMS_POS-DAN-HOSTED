@@ -148,11 +148,28 @@ export default function OrderSlipDetailPage() {
 
       <Card size="small">
         <DataTable data={slip.items} columns={columns} />
-        <Flex justify="end" gap={16} style={{ marginTop: 12, paddingInline: 12 }}>
-          <Typography.Text type="secondary">{t("Total amount")}</Typography.Text>
-          <Typography.Text strong style={{ fontSize: 16 }}>
-            {fmtMoney(slip.totalAmount)}
-          </Typography.Text>
+        {/* Total, then what's been paid and what's still owed. */}
+        <Flex vertical align="end" gap={4} style={{ marginTop: 12, paddingInline: 12 }}>
+          <Flex gap={16} align="baseline">
+            <Typography.Text type="secondary">{t("Total amount")}</Typography.Text>
+            <Typography.Text strong style={{ fontSize: 16 }}>
+              {fmtMoney(slip.totalAmount)}
+            </Typography.Text>
+          </Flex>
+          {slip.status !== "unpaid" && (
+            <Flex gap={16} align="baseline">
+              <Typography.Text type="secondary">{t("Amount paid")}</Typography.Text>
+              <Typography.Text>{fmtMoney(slip.amountPaid)}</Typography.Text>
+            </Flex>
+          )}
+          {slip.status !== "paid" && (
+            <Flex gap={16} align="baseline">
+              <Typography.Text type="secondary">{t("Balance")}</Typography.Text>
+              <Typography.Text strong type={isOverdue(slip) ? "danger" : undefined}>
+                {fmtMoney(slip.balance)}
+              </Typography.Text>
+            </Flex>
+          )}
         </Flex>
       </Card>
     </Space>
