@@ -64,6 +64,13 @@
       "when": 1790833085759,
       "tag": "0008_order_slip_trash",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791266301856,
+      "tag": "0009_order_slip_amount_paid",
+      "breakpoints": true
     }
   ]
 }

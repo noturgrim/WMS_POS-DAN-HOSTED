@@ -334,6 +334,12 @@ export const orderSlips = pgTable(
     status: paymentStatus("status").notNull(),
     paymentDueDate: date("payment_due_date", { mode: "string" }).notNull(),
     totalAmount: numeric("total_amount", { precision: 16, scale: 2, mode: "number" }).notNull(),
+    /**
+     * Money received so far. Equals total_amount when paid, 0 when unpaid,
+     * and anything in between when partial; the balance owed is the
+     * difference, so it is computed rather than stored.
+     */
+    amountPaid: numeric("amount_paid", { precision: 16, scale: 2, mode: "number" }).notNull().default(0),
     revision: integer("revision").notNull().default(1),
     /**
      * Set when the slip is moved to Trash. Its stock is reversed at that
@@ -363,6 +369,12 @@ export const orderSlips = pgTable(
     ),
     check("order_slip_number_positive", sql`${table.slipNumber} > 0`),
     check("order_slip_total_nonnegative", sql`${table.totalAmount} >= 0`),
+    check(
+      "order_slip_amount_paid_ck",
+      sql`${table.amountPaid} >= 0 and ${table.amountPaid} <= ${table.totalAmount}
+        and (${table.status} <> 'paid' or ${table.amountPaid} = ${table.totalAmount})
+        and (${table.status} <> 'unpaid' or ${table.amountPaid} = 0)`,
+    ),
     check("order_slip_due_date_ck", sql`${table.paymentDueDate} >= ${table.date}`),
   ],
 );
